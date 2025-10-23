@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Volume2, Mail, Lock, ArrowLeft, User } from "lucide-react";
-import "../styles/theme.css"; // import the CSS
+import "../styles/theme.css";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,6 +9,8 @@ const Login = () => {
     email: "",
     password: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const speakText = (text) => {
     if ("speechSynthesis" in window) {
@@ -19,12 +21,44 @@ const Login = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
     speakText("Logging in...");
-    console.log("Login Data:", formData);
-    // TODO: Implement login API
-    navigate("/dashboard");
+
+    try {
+      // Create FormData for OAuth2PasswordRequestForm
+      const formPayload = new URLSearchParams();
+      formPayload.append("username", formData.email); // backend expects username field
+      formPayload.append("password", formData.password);
+
+      const res = await fetch("http://127.0.0.1:8000/auth/login", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: formPayload,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Invalid credentials");
+      }
+
+      // Save JWT token
+      localStorage.setItem("token", data.access_token);
+
+      speakText("Login successful!");
+      navigate("/dashboard");
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+      speakText("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -58,6 +92,7 @@ const Login = () => {
               }
               aria-label="Email address input"
               required
+              disabled={loading}
             />
             <button
               type="button"
@@ -85,6 +120,7 @@ const Login = () => {
               }
               aria-label="Password input"
               required
+              disabled={loading}
             />
             <button
               type="button"
@@ -97,15 +133,16 @@ const Login = () => {
           </div>
         </div>
 
-        <button type="submit" className="submit-btn">
-          Login
+        {error && <p className="error">{error}</p>}
+
+        <button type="submit" className="submit-btn" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
         </button>
       </form>
 
       <div className="footer">
         <p>
-          Don't have an account?{" "}
-          <Link to="/signup">Sign up here</Link>
+          Don't have an account? <Link to="/signup">Sign up here</Link>
         </p>
       </div>
     </div>

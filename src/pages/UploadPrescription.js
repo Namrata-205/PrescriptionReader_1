@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/Card";
+import { Card } from "../components/ui/Card";
 import { Upload, ArrowLeft, Volume2, RotateCw, Check, Edit, Loader2 } from "lucide-react";
 import { Progress } from "../components/ui/Progress";
 import "../styles/theme.css";
@@ -23,7 +23,7 @@ const UploadPrescription = () => {
   };
 
   const speakMedicine = (medicine) => {
-    const text = `${medicine.name}, ${medicine.dosage}, ${medicine.frequency}. Confidence: ${medicine.confidence} percent.`;
+    const text = `${medicine.medicine_name}, ${medicine.dosage}, ${medicine.frequency}.`;
     speakText(text);
   };
 
@@ -40,6 +40,7 @@ const UploadPrescription = () => {
   };
 
   const handleProcess = async () => {
+    if (!uploadedImage) return;
     setIsProcessing(true);
     setProcessingStep(0);
 
@@ -47,23 +48,40 @@ const UploadPrescription = () => {
       "Preprocessing image...",
       "Running OCR...",
       "Extracting medicine names...",
-      "Matching with database...",
+      "Saving data...",
       "Complete!"
     ];
 
     for (let i = 0; i < stages.length; i++) {
       setProcessingStep((i + 1) * 20);
       speakText(stages[i]);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500)); // small delay
     }
 
-    setExtractedMedicines([
-      { id: 1, name: "Paracetamol", dosage: "500mg", frequency: "Twice daily", confidence: 95 },
-      { id: 2, name: "Amoxicillin", dosage: "250mg", frequency: "Three times daily", confidence: 88 }
-    ]);
+    try {
+      // Convert uploaded image Data URL to Blob
+      const formData = new FormData();
+      const blob = await fetch(uploadedImage).then(r => r.blob());
+      formData.append("file", blob, "prescription.png");
+
+      // Call backend FastAPI route
+      const response = await fetch("http://127.0.0.1:8000/api/prescriptions/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Failed to process prescription");
+
+      const data = await response.json();
+      setExtractedMedicines(data.structured_data?.medicines || []);
+      speakText("Prescription processed successfully. Review the extracted medicines below.");
+
+    } catch (error) {
+      console.error(error);
+      speakText("Error processing prescription. Please try again.");
+    }
 
     setIsProcessing(false);
-    speakText("Prescription processed successfully. Review the extracted medicines below.");
   };
 
   return (
@@ -115,16 +133,18 @@ const UploadPrescription = () => {
         {/* Extracted Medicines */}
         {extractedMedicines.length > 0 && (
           <div className="medicines-grid">
-            {extractedMedicines.map((medicine) => (
-              <Card key={medicine.id} className="medicine-card">
+            {extractedMedicines.map((medicine, idx) => (
+              <Card key={idx} className="medicine-card">
                 <div>
-                  <h4>{medicine.name}</h4>
+                  <h4>{medicine.medicine_name}</h4>
                   <p><strong>Dosage:</strong> {medicine.dosage}</p>
                   <p><strong>Frequency:</strong> {medicine.frequency}</p>
-                  <p><strong>Confidence:</strong> {medicine.confidence}%</p>
+                  <p><strong>Instructions:</strong> {medicine.instructions}</p>
                 </div>
                 <div className="medicine-actions">
-                  <Button variant="outline" size="icon" onClick={() => speakMedicine(medicine)}><Volume2 size={18} /></Button>
+                  <Button variant="outline" size="icon" onClick={() => speakMedicine(medicine)}>
+                    <Volume2 size={18} />
+                  </Button>
                   <Button variant="outline" size="icon"><Edit size={18} /></Button>
                   <Button variant="success" size="icon"><Check size={18} /></Button>
                 </div>

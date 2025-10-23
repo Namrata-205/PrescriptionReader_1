@@ -11,6 +11,7 @@ const Signup = () => {
     password: "",
     confirmPassword: "",
   });
+  const [error, setError] = useState("");
 
   const speakText = (text) => {
     if ("speechSynthesis" in window) {
@@ -21,17 +22,44 @@ const Signup = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
     if (formData.password !== formData.confirmPassword) {
       speakText("Passwords do not match!");
-      alert("Passwords do not match!");
+      setError("Passwords do not match!");
       return;
     }
+
     speakText("Signing up...");
-    console.log("Signup Data:", formData);
-    // TODO: Implement signup API
-    navigate("/login");
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email, // send as "email" to match backend UserCreate model
+          password: formData.password,
+          name: formData.name // optional, if backend uses only username, this can be ignored
+        }),
+
+      });
+
+      const data = await res.json(); // parse JSON response
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Signup failed");
+      }
+
+      speakText("Signup successful!");
+      alert("Signup successful!");
+      navigate("/login");
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+      speakText("Signup failed. Please try again.");
+    }
   };
 
   return (
@@ -63,14 +91,12 @@ const Signup = () => {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              aria-label="Full name input"
               required
             />
             <button
               type="button"
               className="volume-btn"
               onClick={() => speakText("Enter your full name")}
-              aria-label="Read name field"
             >
               <Volume2 size={20} />
             </button>
@@ -90,14 +116,12 @@ const Signup = () => {
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
-              aria-label="Email address input"
               required
             />
             <button
               type="button"
               className="volume-btn"
               onClick={() => speakText("Enter your email address")}
-              aria-label="Read email field"
             >
               <Volume2 size={20} />
             </button>
@@ -117,14 +141,12 @@ const Signup = () => {
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
-              aria-label="Password input"
               required
             />
             <button
               type="button"
               className="volume-btn"
               onClick={() => speakText("Enter your password")}
-              aria-label="Read password field"
             >
               <Volume2 size={20} />
             </button>
@@ -144,19 +166,19 @@ const Signup = () => {
               onChange={(e) =>
                 setFormData({ ...formData, confirmPassword: e.target.value })
               }
-              aria-label="Confirm password input"
               required
             />
             <button
               type="button"
               className="volume-btn"
               onClick={() => speakText("Confirm your password")}
-              aria-label="Read confirm password field"
             >
               <Volume2 size={20} />
             </button>
           </div>
         </div>
+
+        {error && <p className="error">{error}</p>}
 
         <button type="submit" className="submit-btn">
           Sign Up
@@ -165,8 +187,7 @@ const Signup = () => {
 
       <div className="footer">
         <p>
-          Already have an account?{" "}
-          <Link to="/login">Login here</Link>
+          Already have an account? <Link to="/login">Login here</Link>
         </p>
       </div>
     </div>
