@@ -71,63 +71,65 @@ async def upload_prescription(file: UploadFile = File(...)):
 # ===== CHATBOT ENDPOINT (ADD THIS) =====
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_with_assistant(request: ChatRequest):
-    """Answer questions about medicines from prescription"""
+    """Answer questions about medicines from prescription only"""
     try:
-        # Format medicines for context
-        medicines_text = "USER'S MEDICINES FROM PRESCRIPTION:\n"
+        # 1️⃣ Prepare medicines context
+        if not request.medicines:
+            return ChatResponse(
+                success=True,
+                response="No medicines were uploaded from your prescription. Please upload a prescription first.",
+                error=None
+            )
+
+        medicines_text = "USER'S PRESCRIPTION MEDICINES:\n"
         for med in request.medicines:
-            medicines_text += f"\n- {med.get('medicine_name', 'Unknown')}"
-            medicines_text += f"\n  Dosage: {med.get('dosage', 'Not specified')}"
-            medicines_text += f"\n  Frequency: {med.get('frequency', 'Not specified')}"
-            if med.get('instructions'):
-                medicines_text += f"\n  Instructions: {med.get('instructions')}"
-        
-        # Build conversation history
+            medicines_text += f"- {med.get('medicine_name', 'Unknown')}\n"
+            medicines_text += f"  Dosage: {med.get('dosage', 'Not specified')}\n"
+            medicines_text += f"  Frequency: {med.get('frequency', 'Not specified')}\n"
+            if med.get("instructions"):
+                medicines_text += f"  Instructions: {med.get('instructions')}\n"
+
+        # 2️⃣ Build conversation context (last 4 messages)
         conversation_context = ""
-        if request.conversationHistory:
-            for msg in request.conversationHistory[-4:]:
-                role = "USER" if msg.get('role') == 'user' else "ASSISTANT"
-                conversation_context += f"{role}: {msg.get('content', '')}\n"
-        
-        # System prompt
-        system_prompt = f"""You are a helpful medicine assistant for visually impaired users.
-Answer questions about medicines from prescriptions clearly and simply.
+        for msg in request.conversationHistory[-4:]:
+            role = "USER" if msg.get("role") == "user" else "ASSISTANT"
+            conversation_context += f"{role}: {msg.get('content', '')}\n"
+
+        # 3️⃣ Create strict system prompt
+        system_prompt = f"""
+You are a medicine assistant for visually impaired users.
+You MUST ONLY answer questions about medicines listed below.
+If a question is about a medicine not listed, reply:
+'That medicine is not in your prescription.'
 
 {medicines_text}
 
-CONVERSATION HISTORY:
-{conversation_context if conversation_context else "Start of conversation"}
+Conversation history:
+{conversation_context if conversation_context else 'Start of conversation'}
+"""
 
-GUIDELINES:
-- Answer questions about medicines listed above ONLY
-- Use simple, clear language
-- If asked about medicine not in list, say "That medicine is not in your prescription"
-- Always remind to consult doctor for medical concerns
-- Be concise and helpful
-- Never diagnose or change dosages
-- If you don't know something, admit it"""
-
-        # Call Gemini API
+        # 4️⃣ Call Gemini API
         model = genai.GenerativeModel("gemini-2.5-flash")
         response = model.generate_content(
             [system_prompt, f"\nUSER QUESTION: {request.message}"],
             generation_config=genai.types.GenerationConfig(
                 max_output_tokens=300,
-                temperature=0.7,
+                temperature=0.0,  # deterministic answers, no hallucinations
             )
         )
-        
+
         return ChatResponse(
             success=True,
             response=response.text.strip(),
             error=None
         )
-    
+
     except Exception as e:
         print(f"Chat Error: {e}")
         return ChatResponse(
             success=False,
-            response="",
+            response="Sorry, an error occurred while processing your request.",
             error=str(e)
         )
+
 # ===== END CHATBOT ENDPOINT =====

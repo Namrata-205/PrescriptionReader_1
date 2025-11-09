@@ -76,6 +76,11 @@ const UploadPrescription = () => {
       const data = await response.json();
       setRawOcrText(data.raw_text); // CAPTURE RAW TEXT
       setExtractedMedicines(data.structured_data?.medicines || []);
+      sessionStorage.setItem(
+      "extractedMedicines",
+      JSON.stringify(data.structured_data?.medicines || [])
+      );
+
       setProcessingStep(100);
       speakText("Prescription processed successfully. Review the extracted medicines below.");
 
