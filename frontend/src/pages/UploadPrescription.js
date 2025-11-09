@@ -348,8 +348,6 @@ const UploadPrescription = () => {
                   <Button variant="outline" size="icon" onClick={() => speakMedicine(medicine)}>
                     <Volume2 size={18} />
                   </Button>
-                  <Button variant="outline" size="icon"><Edit size={18} /></Button>
-                  <Button variant="success" size="icon"><Check size={18} /></Button>
                 </div>
               </Card>
             ))}

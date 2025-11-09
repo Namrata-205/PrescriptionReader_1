@@ -359,12 +359,6 @@ const MyMedicines = () => {
                   >
                     <Volume2 className="medicine-action-icon" />
                   </button>
-                  <button className="medicine-action-btn edit">
-                    <Edit className="medicine-action-icon" />
-                  </button>
-                  <button className="medicine-action-btn delete">
-                    <Trash2 className="medicine-action-icon" />
-                  </button>
                 </div>
               </div>
             ))
