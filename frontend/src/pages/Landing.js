@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { Volume2, Pill, Camera, MessageSquare, Shield } from "lucide-react";
 import "../styles/theme.css";
 
+import { globalSpeakText as speakText } from "../context/SettingsContext";
+
 const features = [
   { icon: Camera, title: "Scan Prescriptions", desc: "Upload or photograph prescriptions for instant OCR text extraction" },
   { icon: Volume2, title: "Voice Guidance", desc: "Every action has clear voice feedback and audio playback" },
@@ -12,14 +14,14 @@ const features = [
 ];
 
 const Landing = () => {
-  const speakText = (text) => {
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  // const speakText = (text) => {
+  //   if ("speechSynthesis" in window) {
+  //     const utterance = new SpeechSynthesisUtterance(text);
+  //     utterance.rate = 0.9;
+  //     utterance.pitch = 1;
+  //     window.speechSynthesis.speak(utterance);
+  //   }
+  // };
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(to bottom right, #f0f4f8, #c9e4f6)", position: "relative" }}>

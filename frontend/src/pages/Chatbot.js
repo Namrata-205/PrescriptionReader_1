@@ -7,6 +7,8 @@ import { Textarea } from "../components/ui/Textarea";
 import { ScrollArea } from "../components/ui/Scrollarea";
 import "../styles/theme.css"; // Import the custom CSS
 
+import { globalSpeakText as speakText } from "../context/SettingsContext";
+
 const Chatbot = () => {
   const [messages, setMessages] = useState([
     {
@@ -30,14 +32,14 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const speakText = (text) => {
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  // const speakText = (text) => {
+  //   if ("speechSynthesis" in window) {
+  //     const utterance = new SpeechSynthesisUtterance(text);
+  //     utterance.rate = 0.9;
+  //     utterance.pitch = 1;
+  //     window.speechSynthesis.speak(utterance);
+  //   }
+  // };
 
   const handleSendMessage = () => {
     if (!inputMessage.trim()) return;

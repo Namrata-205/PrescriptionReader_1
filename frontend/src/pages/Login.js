@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Volume2, Mail, Lock, ArrowLeft, User } from "lucide-react";
 import "../styles/theme.css";
 
+import { globalSpeakText as speakText } from "../context/SettingsContext";
+
 const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -12,14 +14,14 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const speakText = (text) => {
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  // const speakText = (text) => {
+  //   if ("speechSynthesis" in window) {
+  //     const utterance = new SpeechSynthesisUtterance(text);
+  //     utterance.rate = 0.9;
+  //     utterance.pitch = 1;
+  //     window.speechSynthesis.speak(utterance);
+  //   }
+  // };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

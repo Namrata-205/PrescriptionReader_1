@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Pill, Settings, LogOut, Upload, Volume2, Book, User } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import "../styles/theme.css";
+import { globalSpeakText as handleAudio } from "../context/SettingsContext";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -19,12 +20,12 @@ const Dashboard = () => {
     navigate("/"); // redirect to landing page
   };
 
-  const handleAudio = (text) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    speechSynthesis.speak(utterance);
-  };
+  // const handleAudio = (text) => {
+  //   const utterance = new SpeechSynthesisUtterance(text);
+  //   utterance.rate = 0.9;
+  //   utterance.pitch = 1;
+  //   speechSynthesis.speak(utterance);
+  // };
 
   const handleOpen = (path) => {
     navigate(path);

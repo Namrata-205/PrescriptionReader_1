@@ -5,6 +5,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../co
 import { ArrowLeft, Volume2, Check } from "lucide-react";
 import "../styles/theme.css";
 
+import { globalSpeakText as speakText } from "../context/SettingsContext";
+
 const ScanMedicine = () => {
   const navigate = useNavigate();
   const videoRef = useRef(null);
@@ -50,14 +52,14 @@ const ScanMedicine = () => {
     };
   }, [selectedDeviceId]);
 
-  const speakText = (text) => {
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  // const speakText = (text) => {
+  //   if ("speechSynthesis" in window) {
+  //     const utterance = new SpeechSynthesisUtterance(text);
+  //     utterance.rate = 0.9;
+  //     utterance.pitch = 1;
+  //     window.speechSynthesis.speak(utterance);
+  //   }
+  // };
 
   const capturePhoto = () => {
     const canvas = canvasRef.current;
