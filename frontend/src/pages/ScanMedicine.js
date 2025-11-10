@@ -2,12 +2,15 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/Card";
-import { ArrowLeft, Volume2, Check } from "lucide-react";
+import { ArrowLeft, Volume2, Check, Upload } from "lucide-react";
 import "../styles/theme.css";
 
-import { globalSpeakText as speakText } from "../context/SettingsContext";
 
-const ScanMedicine = () => {
+// Define the API endpoint URL
+const API_URL = "http://127.0.0.1:8000/api/scan/upload";
+
+
+const ScanMedicine = ({ loggedInUser }) => {
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -16,50 +19,67 @@ const ScanMedicine = () => {
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [capturedImage, setCapturedImage] = useState(null);
   const [scannedMedicine, setScannedMedicine] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Get list of video input devices
+
+  // Get video devices
   useEffect(() => {
     const getDevices = async () => {
-      const deviceInfos = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = deviceInfos.filter(d => d.kind === "videoinput");
-      setDevices(videoDevices);
-      if (videoDevices[0]) setSelectedDeviceId(videoDevices[0].deviceId);
+      try {
+        const deviceInfos = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = deviceInfos.filter(d => d.kind === "videoinput");
+        setDevices(videoDevices);
+        if (videoDevices[0]) setSelectedDeviceId(videoDevices[0].deviceId);
+      } catch (err) {
+        console.error("Error getting devices:", err);
+      }
     };
     getDevices();
   }, []);
 
-  // Start camera whenever selectedDeviceId changes
-  useEffect(() => {
-    if (!selectedDeviceId) return;
 
+  // Start camera when selectedDeviceId changes
+  useEffect(() => {
     const startCamera = async () => {
+      if (selectedDeviceId === "upload") return;
       if (stream) stream.getTracks().forEach(track => track.stop());
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: selectedDeviceId } }
-        });
+        const constraints = selectedDeviceId
+          ? { video: { deviceId: selectedDeviceId } }
+          : { video: true };
+
+
+        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
         setStream(mediaStream);
-        if (videoRef.current) videoRef.current.srcObject = mediaStream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
       } catch (err) {
-        console.error("Camera access denied", err);
-        alert("Cannot access camera. Please allow camera permissions.");
+        console.error("Camera access denied:", err);
+        alert("Unable to access camera. Please allow permissions and refresh.");
       }
     };
+
+
     startCamera();
+
 
     return () => {
       if (stream) stream.getTracks().forEach(track => track.stop());
     };
   }, [selectedDeviceId]);
 
-  // const speakText = (text) => {
-  //   if ("speechSynthesis" in window) {
-  //     const utterance = new SpeechSynthesisUtterance(text);
-  //     utterance.rate = 0.9;
-  //     utterance.pitch = 1;
-  //     window.speechSynthesis.speak(utterance);
-  //   }
-  // };
+
+  const speakText = (text) => {
+    if ("speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
 
   const capturePhoto = () => {
     const canvas = canvasRef.current;
@@ -75,32 +95,101 @@ const ScanMedicine = () => {
     }
   };
 
-  const handleScan = async () => {
-    speakText("Scanning medicine. Please hold steady.");
-    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    setScannedMedicine({
-      name: "Paracetamol",
-      brandName: "Tylenol",
-      strength: "500mg",
-      form: "Tablet",
-      confidence: 92,
-      matchedPrescription: true,
-      prescriptionDetails: {
-        dosage: "500mg",
-        frequency: "Twice daily",
-        prescriptionDate: "2025-01-15"
+  const sendImageToBackend = async (imageDataURL) => {
+    setLoading(true);
+    setError(null);
+    speakText("Sending image to server for recognition.");
+
+
+    try {
+      // Convert Data URL to Blob
+      const response = await fetch(imageDataURL);
+      const blob = await response.blob();
+      const imageFile = new File([blob], "medicine_label.png", { type: "image/png" });
+     
+      // Create FormData payload
+      const formData = new FormData();
+      formData.append("file", imageFile);
+
+
+      // Send to FastAPI Backend
+      const apiResponse = await fetch(API_URL, {
+        method: "POST",
+        body: formData,
+      });
+
+
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Server error: ${apiResponse.statusText}`);
       }
-    });
-    speakText("Medicine recognized. Paracetamol, 500 milligrams. Match found in your prescriptions.");
+
+
+      const result = await apiResponse.json();
+     
+      console.log("Backend Scan Result:", result);
+
+
+      // Check for errors in the response
+      if (result.structured_data?.error) {
+        throw new Error(result.structured_data.error);
+      }
+
+
+      // Extract drug_name and expiry_date from structured_data
+      const { drug_name, expiry_date } = result.structured_data;
+
+
+      setScannedMedicine({
+        medicinesDetected: [{
+          name: drug_name || "Not Found",
+          expiry: expiry_date || "Not Found",
+          ocr_line: drug_name || "Not Found"
+        }],
+        ocrText: result.raw_text,
+        matchedPrescription: [],
+      });
+
+
+      // FIXED: Announce medicine name and expiry date separately with delay
+      let speechText = "Scan complete. ";
+     
+      if (drug_name && drug_name !== "Not Found") {
+        speechText += `Detected medicine: ${drug_name}.`;
+      } else {
+        speechText += "Could not detect medicine name clearly.";
+      }
+     
+      speakText(speechText);
+     
+      // Add delay before announcing expiry date
+      setTimeout(() => {
+        let expiryText = "";
+        if (expiry_date && expiry_date !== "Not Found") {
+          expiryText = `Expiry date: ${expiry_date}.`;
+        } else {
+          expiryText = "Expiry date not found.";
+        }
+        speakText(expiryText);
+      }, 2000); // 2 second delay
+     
+    } catch (err) {
+      console.error("API scan error:", err);
+      setError(err.message);
+      speakText("Scan failed. Please try again.");
+      alert(`Failed to scan medicine. Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const speakMedicineDetails = () => {
-    if (!scannedMedicine) return;
-    const med = scannedMedicine;
-    const text = `${med.name}, also known as ${med.brandName}. Strength: ${med.strength}, Form: ${med.form}. Dosage: ${med.prescriptionDetails.dosage}, Frequency: ${med.prescriptionDetails.frequency}. Confidence: ${med.confidence} percent.`;
-    speakText(text);
+
+  const handleScan = async () => {
+    if (!capturedImage) return;
+    await sendImageToBackend(capturedImage);
   };
+
 
   return (
     <div className="scan-container">
@@ -110,12 +199,28 @@ const ScanMedicine = () => {
         </Button>
       </div>
 
+
       <div className="scan-heading">
         <h1>Scan Medicine</h1>
         <p>Use your camera to scan and recognize medicine bottles or packages</p>
       </div>
 
+
       <div className="scan-main">
+        {error && (
+          <div style={{
+            backgroundColor: '#fee',
+            border: '1px solid #fcc',
+            padding: '1rem',
+            borderRadius: '8px',
+            marginBottom: '1rem',
+            color: '#c00'
+          }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+
         {!capturedImage && (
           <Card className="card-scan">
             <CardHeader>
@@ -126,25 +231,69 @@ const ScanMedicine = () => {
               <select
                 className="camera-select"
                 value={selectedDeviceId}
-                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedDeviceId(e.target.value);
+                  if (e.target.value !== "upload") {
+                    setCapturedImage(null);
+                  }
+                }}
               >
+                <option value="">Select Camera</option>
                 {devices.map((device) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label || `Camera ${device.deviceId}`}
                   </option>
                 ))}
+                <option value="upload">Upload Image (From Gallery/Files)</option>
               </select>
 
-              <div className="camera-preview">
-                <video ref={videoRef} autoPlay playsInline className="video-feed" />
-              </div>
 
-              <Button variant="medical" size="lg" className="scan-button" onClick={capturePhoto}>
-                Capture Photo
-              </Button>
+              {selectedDeviceId === "upload" ? (
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '1rem 0' }}>
+                  <Card className="upload-card" style={{ maxWidth: '500px', width: '100%' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setCapturedImage(reader.result);
+                            speakText("Image uploaded. Ready to scan.");
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                      id="upload-file"
+                    />
+                    <label htmlFor="upload-file" className="upload-label">
+                      <Upload size={64} className="upload-icon" />
+                      <h3 className="upload-text">Upload File</h3>
+                      <p className="upload-desc">Select medicine image from your device</p>
+                    </label>
+                  </Card>
+                </div>
+              ) : (
+                <>
+                  <div className="camera-preview">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="video-feed"
+                    />
+                  </div>
+                  <Button variant="medical" size="lg" className="scan-button" onClick={capturePhoto}>
+                    Capture Photo
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
+
 
         {capturedImage && !scannedMedicine && (
           <Card className="card-scan">
@@ -154,53 +303,85 @@ const ScanMedicine = () => {
             </CardHeader>
             <CardContent className="scan-content">
               <img src={capturedImage} alt="Captured" className="preview-image" />
-              <Button variant="medical" size="lg" className="scan-button" onClick={handleScan}>
-                Scan Medicine
+              <Button
+                variant="medical"
+                size="lg"
+                className="scan-button"
+                onClick={handleScan}
+                disabled={loading}
+              >
+                {loading ? "Scanning..." : "Scan Medicine"}
               </Button>
-              <Button variant="outline" size="lg" className="scan-button" onClick={() => setCapturedImage(null)}>
+              <Button
+                variant="outline"
+                size="lg"
+                className="scan-button"
+                onClick={() => {
+                  setCapturedImage(null);
+                  setError(null);
+                }}
+              >
                 Retake
               </Button>
             </CardContent>
           </Card>
         )}
 
+
         {scannedMedicine && (
           <Card className="card-scan-result">
             <CardHeader>
-              <CardTitle>
-                {scannedMedicine.name}
-                {scannedMedicine.matchedPrescription && (
-                  <span className="prescription-badge">
-                    <Check size={16} /> Prescription Match
-                  </span>
-                )}
-              </CardTitle>
-              <CardDescription>Medicine details and prescription information</CardDescription>
+              <CardTitle>Detected Medicines</CardTitle>
+              <CardDescription>OCR results and matched prescriptions</CardDescription>
             </CardHeader>
             <CardContent className="scan-content">
-              <div className="medicine-info">
-                <p><strong>Brand:</strong> {scannedMedicine.brandName}</p>
-                <p><strong>Strength:</strong> {scannedMedicine.strength}</p>
-                <p><strong>Form:</strong> {scannedMedicine.form}</p>
-                <p><strong>Confidence:</strong> {scannedMedicine.confidence}%</p>
-              </div>
+              {scannedMedicine?.medicinesDetected?.length > 0 ? (
+                scannedMedicine.medicinesDetected.map((med, idx) => (
+                  <div key={idx} className="medicine-info">
+                    <p><strong>Name:</strong> {med.name || med.ocr_line}</p>
+                    <p><strong>Expiry:</strong> {med.expiry}</p>
+                  </div>
+                ))
+              ) : (
+                <p>No medicines detected.</p>
+              )}
 
-              {scannedMedicine.matchedPrescription && (
+
+              {scannedMedicine.matchedPrescription.length > 0 && (
                 <Card className="prescription-details-card">
                   <CardContent>
-                    <h4>Prescription Details</h4>
-                    <p><strong>Dosage:</strong> {scannedMedicine.prescriptionDetails.dosage}</p>
-                    <p><strong>Frequency:</strong> {scannedMedicine.prescriptionDetails.frequency}</p>
-                    <p><strong>Date:</strong> {scannedMedicine.prescriptionDetails.prescriptionDate}</p>
+                    <h4>Prescription Matches</h4>
+                    {scannedMedicine.matchedPrescription.map((p, idx) => (
+                      <p key={idx}>{p}</p>
+                    ))}
                   </CardContent>
                 </Card>
               )}
 
+
               <div className="scan-action-buttons">
-                <Button variant="medical" size="lg" onClick={() => { speakText("Medicine saved"); setScannedMedicine(null); setCapturedImage(null); }}>
+                <Button
+                  variant="medical"
+                  size="lg"
+                  onClick={() => {
+                    speakText("Medicine saved");
+                    setScannedMedicine(null);
+                    setCapturedImage(null);
+                    setError(null);
+                  }}
+                >
                   <Check size={18} /> Save to My Medicines
                 </Button>
-                <Button variant="outline" size="lg" onClick={() => { setScannedMedicine(null); setCapturedImage(null); speakText("Ready to scan again"); }}>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => {
+                    setScannedMedicine(null);
+                    setCapturedImage(null);
+                    setError(null);
+                    speakText("Ready to scan again");
+                  }}
+                >
                   Scan Another
                 </Button>
               </div>
@@ -208,10 +389,12 @@ const ScanMedicine = () => {
           </Card>
         )}
 
+
         <canvas ref={canvasRef} style={{ display: "none" }} />
       </div>
     </div>
   );
 };
+
 
 export default ScanMedicine;
