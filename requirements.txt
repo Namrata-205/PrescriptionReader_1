@@ -1,0 +1,20 @@
+# Core FastAPI Framework and Server
+fastapi
+uvicorn[standard]
+
+# Database and ORM
+sqlalchemy
+pydantic
+email-validator  # Required for pydantic's EmailStr validation
+python-multipart # Required for OAuth2PasswordRequestForm handling
+
+# Authentication and Security
+passlib[bcrypt]  # Includes bcrypt, but we switched to pbkdf2_sha256 scheme in auth_service.py
+python-jose[cryptography]  # For JWT (JSON Web Tokens) handling
+
+# Environment and File Handling
+python-dotenv  # Required for loading the GEMINI_API_KEY from the .env file
+Pillow         # Required for image processing in ocr_module.py
+
+# Google Gemini API/OCR Module
+google-genai
