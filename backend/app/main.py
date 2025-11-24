@@ -51,9 +51,14 @@ class ChatResponse(BaseModel):
     response: str
     error: Optional[str] = None
 # ===== END CHATBOT SETUP =====
-
+@app.get("/")
 def read_root(): 
     return {"message": "Prescription Reader API is running"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "message": "Backend is running"}
+
 
 # Prescription upload route
 @app.post("/api/prescriptions/upload")
