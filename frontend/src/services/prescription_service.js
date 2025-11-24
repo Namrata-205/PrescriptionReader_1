@@ -13,7 +13,7 @@ import { Progress } from "../components/ui/Progress";
 import "../styles/theme.css";
 
 // ===================== API SERVICE =====================
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://prescriptionreader-4x86.onrender.com/api";
 
 /**
  * Upload a prescription image to the backend
