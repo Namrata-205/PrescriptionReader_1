@@ -63,7 +63,7 @@ const UploadPrescription = () => {
       formData.append("file", blob, "prescription.png");
 
       // Call backend FastAPI route
-      const response = await fetch("http://127.0.0.1:8000/api/prescriptions/upload", {
+      const response = await fetch("https://prescriptionreader-4x86.onrender.com/api/prescriptions/upload", {
         method: "POST",
         body: formData,
       });
