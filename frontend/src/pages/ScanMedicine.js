@@ -7,7 +7,7 @@ import "../styles/theme.css";
 
 
 // Define the API endpoint URL
-const API_URL = "http://127.0.0.1:8000/api/scan/upload";
+const API_URL = "https://prescriptionreader-4x86.onrender.com/api/scan/upload";
 
 
 const ScanMedicine = ({ loggedInUser }) => {
