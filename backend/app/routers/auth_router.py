@@ -4,13 +4,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.schemas.auth_schema import UserCreate
 from app.models.user_model import User
-from app.services.db_service import get_db, engine  # ← ADD engine import
+from app.services.db_service import get_db, engine
 from app.services.auth_service import (
     get_password_hash,
     verify_password,
     create_access_token
 )
-# ← ADD THESE IMPORTS
 from app.models import medicine_model, settings_model
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -22,20 +21,17 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="User already exists")
     
-    # ← ADD THIS: Clear database for new user
+    # ← FIXED: Delete data rows, not the tables themselves
     try:
-        # Drop and recreate tables (clears all data)
-        medicine_model.Medicine.__table__.drop(bind=engine, checkfirst=True)
-        settings_model.Settings.__table__.drop(bind=engine, checkfirst=True)
+        # Delete all rows from tables (keeps table structure)
+        db.query(medicine_model.Medicine).delete()
+        db.query(settings_model.Settings).delete()
+        db.commit()
         
-        # Recreate empty tables
-        medicine_model.Medicine.__table__.create(bind=engine, checkfirst=True)
-        settings_model.Settings.__table__.create(bind=engine, checkfirst=True)
-        
-        #print(f" Database cleared for new user: {user.email}")
+        print(f"✅ Database data cleared for new user: {user.email}")
     except Exception as e:
-        print(f"⚠️ Error: {e}")
-    # ← END OF ADDITION
+        db.rollback()
+        print(f"⚠️ Error clearing database: {e}")
     
     # Hash the password
     hashed_pwd = get_password_hash(user.password)
@@ -54,7 +50,6 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # Find user by email (username field contains email)
     user = db.query(User).filter(User.email == form_data.username).first()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -64,7 +59,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create access token
     access_token = create_access_token(data={"sub": user.email})
     
     return {"access_token": access_token, "token_type": "bearer"}
