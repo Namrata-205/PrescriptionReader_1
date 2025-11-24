@@ -19,3 +19,4 @@ Pillow         # Required for image processing in ocr_module.py
 # Google Gemini API/OCR Module
 google-genai
 google-generativeai
+fpdf
