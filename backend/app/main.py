@@ -9,6 +9,7 @@ from app.routers import medicine_scanner_router
 from app.routers import settings_router
 from app.models import settings_model
 from app.models import medicine_model
+from contextlib import asynccontextmanager
 import os
 
 # ===== CHATBOT IMPORTS =====
@@ -17,7 +18,17 @@ from pydantic import BaseModel
 from typing import List, Optional
 # ===== END CHATBOT IMPORTS =====
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Clear all tables and recreate them
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database cleared and recreated on startup")
+    yield
+    # Shutdown: Add any cleanup code here if needed
+    print("🔻 Application shutting down")
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,7 +45,6 @@ app.include_router(medicine_scanner_router.router, prefix="/api")
 app.include_router(settings_router.router, prefix="/api")
 
 # Create database tables 
-Base.metadata.create_all(bind=engine) 
 
 # ===== CHATBOT SETUP =====
 # Configure Gemini
