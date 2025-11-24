@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // Set your backend base URL
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://prescriptionreader-4x86.onrender.com/api";
 
 // const getTokenConfig = () => {
 //     const token = localStorage.getItem("token"); // Assuming JWT is stored here
