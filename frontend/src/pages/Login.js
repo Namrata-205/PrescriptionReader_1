@@ -35,7 +35,7 @@ const Login = () => {
       formPayload.append("username", formData.email); // backend expects username field
       formPayload.append("password", formData.password);
 
-      const res = await fetch("https://prescriptionreader-4x86.onrender.com//auth/login", {
+      const res = await fetch("https://prescriptionreader-4x86.onrender.com/auth/login", {
         method: "POST",
         headers: { 
           "Content-Type": "application/x-www-form-urlencoded"
