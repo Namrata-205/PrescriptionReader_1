@@ -34,7 +34,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         
         #print(f" Database cleared for new user: {user.email}")
     except Exception as e:
-        #print(f"⚠️ Error clearing database: {e}")
+        print(f"⚠️ Error: {e}")
     # ← END OF ADDITION
     
     # Hash the password
